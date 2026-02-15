@@ -1,0 +1,135 @@
+import type { AuditReport, Finding, Severity } from '../types/findings.js';
+
+const SEVERITY_COLORS: Record<Severity, string> = {
+  critical: '#dc2626',
+  high: '#ea580c',
+  medium: '#d97706',
+  low: '#2563eb',
+  info: '#6b7280',
+};
+
+export function formatHtmlReport(report: AuditReport): string {
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>mcpguard Security Report</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0f172a; color: #e2e8f0; line-height: 1.6; }
+  .container { max-width: 960px; margin: 0 auto; padding: 2rem; }
+  h1 { font-size: 1.75rem; margin-bottom: 0.25rem; }
+  .subtitle { color: #64748b; margin-bottom: 2rem; }
+  .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+  .card { background: #1e293b; border-radius: 8px; padding: 1.25rem; border: 1px solid #334155; }
+  .card-label { font-size: 0.75rem; text-transform: uppercase; color: #94a3b8; letter-spacing: 0.05em; }
+  .card-value { font-size: 1.5rem; font-weight: 700; margin-top: 0.25rem; }
+  .risk-gauge { margin-bottom: 2rem; }
+  .gauge-bar { height: 12px; background: #334155; border-radius: 6px; overflow: hidden; }
+  .gauge-fill { height: 100%; border-radius: 6px; transition: width 0.3s; }
+  .severity-bar { display: flex; gap: 0.5rem; margin: 1rem 0 2rem; flex-wrap: wrap; }
+  .sev-badge { padding: 0.25rem 0.75rem; border-radius: 4px; font-size: 0.8rem; font-weight: 600; color: white; }
+  .findings { display: flex; flex-direction: column; gap: 1rem; }
+  .finding { background: #1e293b; border-radius: 8px; padding: 1.25rem; border-left: 4px solid; }
+  .finding-header { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.75rem; }
+  .finding-severity { padding: 0.15rem 0.5rem; border-radius: 3px; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; color: white; }
+  .finding-title { font-weight: 600; font-size: 1rem; }
+  .finding-meta { display: grid; grid-template-columns: auto 1fr; gap: 0.25rem 1rem; font-size: 0.85rem; color: #94a3b8; }
+  .finding-meta dt { font-weight: 500; }
+  .finding-meta dd { color: #cbd5e1; word-break: break-all; }
+  .remediation { margin-top: 0.75rem; padding: 0.75rem; background: #0f172a; border-radius: 4px; font-size: 0.85rem; border: 1px solid #334155; }
+  .remediation::before { content: 'Fix: '; font-weight: 600; color: #38bdf8; }
+  .footer { margin-top: 3rem; text-align: center; color: #475569; font-size: 0.8rem; }
+  .no-findings { text-align: center; padding: 3rem; color: #22c55e; font-size: 1.25rem; font-weight: 600; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>mcpguard Security Report</h1>
+  <p class="subtitle">Generated ${report.timestamp} | v${report.version}</p>
+
+  <div class="summary-grid">
+    <div class="card">
+      <div class="card-label">Configs Found</div>
+      <div class="card-value">${report.summary.configsFound}</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Servers Scanned</div>
+      <div class="card-value">${report.summary.totalServers}</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Total Findings</div>
+      <div class="card-value">${report.summary.totalFindings}</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Risk Score</div>
+      <div class="card-value" style="color: ${getScoreColor(report.machineRiskScore)}">${report.machineRiskScore}/100</div>
+    </div>
+  </div>
+
+  <div class="risk-gauge">
+    <div class="gauge-bar">
+      <div class="gauge-fill" style="width: ${report.machineRiskScore}%; background: ${getScoreColor(report.machineRiskScore)}"></div>
+    </div>
+  </div>
+
+  ${report.summary.totalFindings > 0 ? `
+  <div class="severity-bar">
+    ${report.summary.critical > 0 ? `<span class="sev-badge" style="background: ${SEVERITY_COLORS.critical}">Critical: ${report.summary.critical}</span>` : ''}
+    ${report.summary.high > 0 ? `<span class="sev-badge" style="background: ${SEVERITY_COLORS.high}">High: ${report.summary.high}</span>` : ''}
+    ${report.summary.medium > 0 ? `<span class="sev-badge" style="background: ${SEVERITY_COLORS.medium}">Medium: ${report.summary.medium}</span>` : ''}
+    ${report.summary.low > 0 ? `<span class="sev-badge" style="background: ${SEVERITY_COLORS.low}">Low: ${report.summary.low}</span>` : ''}
+    ${report.summary.info > 0 ? `<span class="sev-badge" style="background: ${SEVERITY_COLORS.info}">Info: ${report.summary.info}</span>` : ''}
+  </div>
+  ` : ''}
+
+  ${report.findings.length === 0
+    ? '<div class="no-findings">No security issues found.</div>'
+    : `<div class="findings">${report.findings.map(f => renderFinding(f)).join('')}</div>`
+  }
+
+  <div class="footer">
+    <p>Generated by mcpguard — Offline MCP Security Auditor</p>
+  </div>
+</div>
+</body>
+</html>`;
+}
+
+function renderFinding(f: Finding): string {
+  const borderColor = SEVERITY_COLORS[f.severity];
+  return `
+    <div class="finding" style="border-left-color: ${borderColor}">
+      <div class="finding-header">
+        <span class="finding-severity" style="background: ${borderColor}">${f.severity}</span>
+        <span class="finding-title">${escapeHtml(f.title)}</span>
+      </div>
+      <dl class="finding-meta">
+        <dt>Server</dt><dd>${escapeHtml(f.server)}</dd>
+        <dt>Client</dt><dd>${escapeHtml(f.client)}</dd>
+        <dt>Config</dt><dd>${escapeHtml(f.configPath)}</dd>
+        <dt>Location</dt><dd>${escapeHtml(f.location)}</dd>
+        <dt>Evidence</dt><dd>${escapeHtml(f.evidence)}</dd>
+        <dt>OWASP</dt><dd>${escapeHtml(f.owaspMapping)}</dd>
+        ${f.cwe ? `<dt>CWE</dt><dd>${escapeHtml(f.cwe)}</dd>` : ''}
+      </dl>
+      <div class="remediation">${escapeHtml(f.remediation)}</div>
+    </div>`;
+}
+
+function getScoreColor(score: number): string {
+  if (score >= 75) return '#dc2626';
+  if (score >= 50) return '#d97706';
+  if (score >= 25) return '#2563eb';
+  return '#22c55e';
+}
+
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}

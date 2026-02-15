@@ -1,0 +1,51 @@
+{
+  "name": "mcpguard",
+  "version": "0.1.0",
+  "description": "Offline-first security auditor for MCP (Model Context Protocol) configurations",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "mcpguard": "dist/bin/mcpguard.js"
+  },
+  "scripts": {
+    "build": "tsc && node -e \"const fs=require('fs');const p=require('path');const src=p.join('src','tests','fixtures');const dst=p.join('dist','tests','fixtures');fs.mkdirSync(dst,{recursive:true});fs.readdirSync(src).forEach(f=>fs.copyFileSync(p.join(src,f),p.join(dst,f)))\"",
+    "dev": "tsc --watch",
+    "start": "node dist/bin/mcpguard.js",
+    "test": "node --test dist/tests/**/*.test.js",
+    "lint": "tsc --noEmit",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "mcp",
+    "security",
+    "audit",
+    "model-context-protocol",
+    "claude",
+    "cursor",
+    "vscode",
+    "windsurf",
+    "secrets",
+    "devsecops",
+    "sarif",
+    "owasp"
+  ],
+  "author": "",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "dependencies": {
+    "commander": "^12.1.0",
+    "chalk": "^5.4.1",
+    "zod": "^3.24.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "@types/node": "^22.10.0"
+  }
+}
